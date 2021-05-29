@@ -1,0 +1,151 @@
+#include  "DHT.h"
+#include  <WiFiEspClient.h>
+#include  <WiFiEsp.h>
+#include  <WiFiEspUdp.h>
+#include  <PubSubClient.h>
+#include  "SoftwareSerial.h"
+
+#define WIFI_AP "VOTRE_WIFI_AP"
+#define WIFI_PASSWORD "VOTRE_WIFI_PASSWORD"
+
+#define TOKEN "ARDUINO_DEMO_TOKEN"
+
+// DHT
+#define DHTPIN 4
+#define DHTTYPE DHT22
+
+char  thingsboardServer []  =  "VOTRE_THINGSBOARD_HOST_OR_IP" ;
+
+// Initialise l'objet client Ethernet
+WiFiEspClient  espClient ;
+
+// Initialise le capteur DHT.
+DHT  dht ( DHTPIN ,  DHTTYPE );
+
+ Client PubSubClient ( espClient );
+
+SoftwareSerial  souple ( 2 ,  3 );  // RX, TX
+
+ état  int =  WL_IDLE_STATUS ;
+unsigned  long  lastSend ;
+
+void  setup ()  {
+  // initialise série pour le débogage
+  Série . commencer ( 9600 );
+  dht . begin ();
+  InitWiFi ();
+  client . setServer (  ThingsboardServer ,  1883  );
+  lastSend  =  0 ;
+}
+
+ boucle void ()  {
+  status  =  WiFi . statut ();
+  if  (  statut  ! =  WL_CONNECTED )  {
+    while  (  statut  ! =  WL_CONNECTED )  {
+      Série . print ( "Tentative de connexion au SSID WPA:" );
+      Série . println ( WIFI_AP );
+      // Se connecter au réseau WPA / WPA2
+      status  =  WiFi . commencer ( WIFI_AP ,  WIFI_PASSWORD );
+      retard ( 500 );
+    }
+    Série . println ( "Connecté à AP" );
+  }
+
+  if  (  ! client . connecté ()  )  {
+    reconnecter ();
+  }
+
+  if  (  millis ()  -  lastSend  >  1000  )  {  // Mettre à jour et envoyer seulement après 1 seconde
+    getAndSendTemperatureAndHumidityData ();
+    lastSend  =  millis ();
+  }
+
+  client . boucle ();
+}
+
+void  getAndSendTemperatureAndHumidityData ()
+{
+  Série . println ( "Collecte des données de température." );
+
+  // La lecture de la température ou de l'humidité prend environ 250 millisecondes!
+  float  h  =  dht . readHumidity ();
+  // Lire la température en Celsius (par défaut)
+  float  t  =  dht . readTemperature ();
+
+  // Vérifiez si des lectures ont échoué et quittez tôt (pour réessayer).
+  si  ( isnan ( h )  ||  isnan ( t ))  {
+    Série . println ( "Impossible de lire à partir du capteur DHT!" );
+    retour ;
+  }
+
+  Série . print ( "Humidité:" );
+  Série . imprimer ( h );
+  Série . impression ( "% \ t " );
+  Série . print ( "Température:" );
+  Série . imprimer ( t );
+  Série . imprimer ( "* C" );
+
+   Température de la  chaîne =  chaîne ( t );
+   Humidité de la  chaîne =  Chaîne ( h );
+
+
+  // Débogage juste des messages
+  Série . print (  "Envoi température et humidité: ["  );
+  Série . impression (  température  );  Série . imprimer (  ","  );
+  Série . impression (  humidité  );
+  Série . imprimer (  "] ->"  );
+
+  // Préparer une chaîne de charge utile JSON
+  Charge  utile de  chaîne =  "{" ;
+  charge utile  + =  " \" température \ " :" ;  charge utile  + =  température ;  charge utile  + =  "," ;
+  charge utile  + =  " \" humidité \ " :" ;  charge utile  + =  humidité ;
+  charge utile  + =  "}" ;
+
+  // Envoi de la charge utile
+   attributs char [ 100 ];
+  charge utile . toCharArray (  attributs ,  100  );
+  client . publier (  "v1 / devices / me / telemetry" ,  attributs  );
+  Série . println (  attributs  );
+}
+
+void  InitWiFi ()
+{
+  // initialise série pour le module ESP
+  doux . commencer ( 9600 );
+  // initialiser le module ESP
+  WiFi . init ( & soft );
+  // vérifier la présence du bouclier
+  if  ( WiFi . status ()  ==  WL_NO_SHIELD )  {
+    Série . println ( "bouclier WiFi non présent" );
+    // ne continue pas
+    while  ( vrai );
+  }
+
+  Série . println ( "Connexion à AP ..." );
+  // tentative de connexion au réseau WiFi
+  while  (  statut  ! =  WL_CONNECTED )  {
+    Série . print ( "Tentative de connexion au SSID WPA:" );
+    Série . println ( WIFI_AP );
+    // Se connecter au réseau WPA / WPA2
+    status  =  WiFi . commencer ( WIFI_AP ,  WIFI_PASSWORD );
+    retard ( 500 );
+  }
+  Série . println ( "Connecté à AP" );
+}
+
+void  reconnect ()  {
+  // Boucle jusqu'à ce que nous soyons reconnectés
+  while  ( ! client . connecté ())  {
+    Série . print ( "Connexion au nœud Thingsboard ..." );
+    // Tentative de connexion (clientId, nom d'utilisateur, mot de passe)
+    if  (  client . connect ( "Périphérique Arduino Uno" ,  TOKEN ,  NULL )  )  {
+      Série . println (  "[FAIT]"  );
+    }  else  {
+      Série . print (  "[FAILED] [rc ="  );
+      Série . imprimer (  client . état ()  );
+      Série . println (  ": réessayer dans 5 secondes]"  );
+      // Attendez 5 secondes avant de réessayer
+      retard (  5000  );
+    }
+  }
+}

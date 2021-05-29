@@ -1,0 +1,85 @@
+https://www.instructables.com/Houses-Monitoring-Consumption-With-Arduino-UNO/
+http://cms.35g.tw/coding/arduino-using-sct013-measure-current/
+
+
+
+/ *   ***************************
+ * Moniteur de puissance Cayenne MQTT
+ * Giovanni Gentile
+ * Licence Creative Common 2017
+ * www.0lab.it
+ *  
+ * Descriptions:
+ * L'Arduino UNO avec bouclier WiFi et
+ * Capteur STC013 connecté à Analogique 2 broches,
+ * collecter la valeur de la puissance en Watt, et
+ * mettre la valeur de Cayenne Dashboard en
+ * en utilisant le protocole MQTT.
+ * /
+
+// #define CAYENNE_DEBUG
+# define  CAYENNE_PRINT Serial
+# inclure  < CayenneMQTTWiFi.h >
+# inclure  " EmonLib.h "
+
+
+// Calibrations des capteurs
+const  int volt = 220 ;
+const  float ct_calibration = 30 ; // 29 par défaut
+const  int currentSensorPin = A2;
+float Irms = 0 ;
+
+// Créer une instance Emon
+EnergyMonitor emon1;
+
+// Informations sur le réseau WiFi.
+char ssid [] = " ssid " ;
+char wifiPassword [] = " wifiPassword " ;
+
+// Informations d'authentification Cayenne. Cela devrait être obtenu à partir du tableau de bord Cayenne.
+char username [] = " MQTT_USERNAME " ;
+char password [] = " MQTT_PASSWORD " ;
+char clientID [] = " CLIENT_ID " ;
+
+unsigned  long lastMillis = 0 ;
+
+void  setup () {
+	En série. commencer ( 9600 );
+	Cayenne. begin (nom d'utilisateur, mot de passe, clientID, ssid, wifiPassword);
+  emon1. current (currentSensorPin, ct_calibration);
+}
+
+ boucle void () {
+	Cayenne. boucle ();
+
+	// Publie les données toutes les 10 secondes (10000 millisecondes). Modifiez cette valeur pour publier à un intervalle différent.
+	if ( millis () - lastMillis> 10000 ) {
+		lastMillis = millis ();
+		// Écrivez les données sur Cayenne ici. Cet exemple envoie simplement la disponibilité actuelle en millisecondes.
+		Cayenne. virtualWrite ( 0 , lastMillis);
+		Cayenne. virtualWrite ( 1 , Irms * volt);
+	}
+}
+
+CAYENNE_CONNECTED ()
+{
+  CAYENNE_LOG ( " CAYENNE_CONNECTED " );
+}
+
+CAYENNE_DISCONNECTED ()
+{
+  CAYENNE_LOG ( " CAYENNE_DISCONNECTED " );
+}
+// Fonction par défaut pour le traitement des commandes d'actionneur depuis le tableau de bord Cayenne.
+// Vous pouvez également utiliser des fonctions pour des canaux spécifiques, par exemple CAYENNE_IN (1) pour les commandes de canal 1.
+CAYENNE_IN_DEFAULT ()
+{
+	CAYENNE_LOG ( " CAYENNE_IN_DEFAULT (% u) -% s,% s " , demande. Canal , getValue. GetId (), getValue. AsString ());
+	if ( strcmp (getValue. asStr (), " error " ) == 0 ) {
+    getValue. setError ( " Il y a une erreur " );
+  }
+}
+CAYENNE_OUT_DEFAULT ()
+{
+ CAYENNE_LOG ( " CAYENNE_OUT_DEFAULT (% u) " , demande. Canal );
+}
